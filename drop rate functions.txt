@@ -1,0 +1,129 @@
+# average psb drop given rates and drops
+delimiter //
+create function psb_avg(r1 decimal(5,2), r2 decimal(5,2), r3 decimal(5,2), d1 varchar(5), d2 varchar(5), d3 varchar(5))
+	returns decimal(5,4)
+	begin
+		declare avg decimal(5,2);
+		if d3='psb' then
+			set avg = r1 + r2 + r3;
+		elseif d2='psb' then
+			set avg = r1 + r2;
+		elseif d1='psb' then
+			set avg = r1;
+		else
+			signal sqlstate '22012';
+		end if;
+		return cast(avg/100 as decimal(5,4));
+	end //
+delimiter ;
+
+# remove trailing 0's from a rate
+delimiter //
+create function remove0(n decimal(5,2))
+	returns varchar(6)
+	begin
+		declare s varchar(6);
+		set s = trim(trailing '.' from trim(trailing '0' from n));
+		return s;
+	end //
+delimiter ;
+
+# 0 events out of 3
+delimiter //
+create function prob0of3(x decimal(5,2), y decimal(5,2), z decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast((100-x)*(100-y)*(100-z)/10000 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 1 event out of 3
+delimiter //
+create function prob1of3(x decimal(5,2), y decimal(5,2), z decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast((x*(100-y)*(100-z)+(100-x)*y*(100-z)+(100-x)*(100-y)*z)/10000 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 2 event out of 3
+delimiter //
+create function prob2of3(x decimal(5,2), y decimal(5,2), z decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast((x*y*(100-z)+x*(100-y)*z+(100-x)*y*z)/10000 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 3 event out of 3
+delimiter //
+create function prob3of3(x decimal(5,2), y decimal(5,2), z decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast((x*y*z)/10000 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 0 event out of 2
+delimiter //
+create function prob0of2(x decimal(5,2), y decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast(((100-x)*(100-y))/100 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 1 event out of 2
+delimiter //
+create function prob1of2(x decimal(5,2), y decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast((x*(100-y)+(100-x)*y)/100 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 2 event out of 2
+delimiter //
+create function prob2of2(x decimal(5,2), y decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast((x*y)/100 as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 0 event out of 1
+delimiter //
+create function prob0of1(x decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(cast(100-x as decimal(5,2)),'%');
+		return prob;
+	end //
+delimiter ;
+
+# 1 event out of 1
+delimiter //
+create function prob1of1(x decimal(5,2))
+	returns varchar(7)
+	begin
+		declare prob varchar(7);
+		set prob = concat(x,'%');
+		return prob;
+	end //
+delimiter ;
+

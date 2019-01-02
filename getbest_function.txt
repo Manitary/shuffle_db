@@ -1,0 +1,258 @@
+DROP PROCEDURE IF EXISTS get_best;
+SET SESSION group_concat_max_len = 1000000;
+DELIMITER //
+
+CREATE PROCEDURE get_best()
+BEGIN
+	DECLARE done BOOL DEFAULT FALSE;
+	DECLARE temp_type VARCHAR(255);
+	DECLARE cur_type CURSOR FOR SELECT type FROM matchup_offensive;
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+	DROP TABLE IF EXISTS best;
+	CREATE TABLE best (
+		Type VARCHAR(8) UNIQUE,
+		RawAtk VARCHAR(255),
+		BarrierShot VARCHAR(255),
+		BlockShot VARCHAR(255),
+		RockShot VARCHAR(255),
+		ShotOut VARCHAR(255),
+		Typeless VARCHAR(255),
+		Combo VARCHAR(255),
+		Finisher VARCHAR(255),
+		Unconditional VARCHAR(255),
+		StatusBoost VARCHAR(255)
+		#OtherStatus VARCHAR(255)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  
+  OPEN cur_type;
+
+  read_loop: LOOP
+    FETCH cur_type INTO temp_type;
+    IF done THEN
+      LEAVE read_loop;
+    END IF;
+		
+	SET @t = temp_type;
+	SET @barrier_shot = "('Barrier Shot','Barrier Shot Ω')";
+	SET @block_shot = "('Block Shot','Destruction')";
+	SET @rock_shot = "('Rock Shot','Rock Shot α')";
+	SET @shot_out = "('Shot Out')";
+	SET @combo_skill = "('Big Wave','Bug Combo','Conduction','Dancing Dragons','Double Normal','Ground Forces','Ice Dance','Leaf Combo','Metal Combo','Phantom Combo','Pixie Power','Poison Pact','Poison Rush','Psychic Combo','Pummel','Pyre','Rock Combo','Shadow Dance','Sinister Power','Sky Blast')";
+	SET @finisher_skill = "('Final Effort','Hyper Bolt','Last-Ditch Effort','Steely Resolve')";
+	SET @other_burst = "('Cross Attack+','Demolish','Nosedive','Unity Power','Beast Power','Power Hug','Psyburst','Shadow Shock')";
+	SET @status_boost = "('Burn+','Spookify+','Freeze+','Poison','Sleep Charm')";
+	#SET @other_status = "('Stun','Timer','Paralysis')";
+	
+	SET @s = CONCAT("INSERT INTO best (type,rawatk,barriershot,blockshot,rockshot,shotout,typeless,combo,finisher,unconditional,statusboost) SELECT 
+						@t,
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1
+								AND atk_calc(d.pokemon_name,d.rml+10) >= (
+									SELECT atk_calc(d.pokemon_name,d.rml+10) FROM dex d
+									INNER JOIN matchup_offensive m USING (type)
+									WHERE d.bp IS NOT NULL AND m.",@t,"=1
+									ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 3,1
+									)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml
+							) list1),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@barrier_shot,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@barrier_shot,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_barrier),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@block_shot,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@block_shot,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_block),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@rock_shot,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@rock_shot,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_rock),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@shot_out,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@shot_out,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_out),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name = 'Typeless Combo'
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name = 'Typeless Combo'
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_combo),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@combo_skill,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@combo_skill,"
+													AND d.pokemon_name NOT IN ('Ampharos','Giratina (Origin Forme)','Zweilous')
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+								AND d.pokemon_name NOT IN ('Ampharos','Giratina (Origin Forme)','Zweilous')
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_combo),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@finisher_skill,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@finisher_skill,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_finisher),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' (',skill_name,') [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							SELECT d.pokemon_name,s.skill_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@other_burst,"
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@other_burst,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+							ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+							) list_burst),
+						(SELECT GROUP_CONCAT(CONCAT(pokemon_name,' (',skill_name,') [',rml,', ',is_primary,']') SEPARATOR ', ') FROM (
+							#SELECT d.pokemon_name,s.skill_name FROM dex d 
+							SELECT d.pokemon_name,s.skill_name,d.rml,s.is_primary FROM dex d 
+							INNER JOIN matchup_offensive m USING (type) 
+							INNER JOIN pokemon_skill s USING (pokemon_name)
+							INNER JOIN skill_status st USING (skill_name)
+							WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@status_boost,"
+								AND st.status NOT IN (SELECT status FROM immunity WHERE TYPE = @t) 
+								AND atk_calc(d.pokemon_name,d.rml+10) >= 
+									COALESCE(
+										(SELECT atk FROM 
+											(
+												SELECT atk_calc(d.pokemon_name,d.rml+10) atk FROM dex d
+												INNER JOIN matchup_offensive m USING (type)
+												INNER JOIN pokemon_skill s USING (pokemon_name)
+												WHERE d.bp IS NOT NULL AND m.",@t,"=1 AND s.skill_name IN ",@status_boost,"
+												ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC LIMIT 4
+											) tab1 ORDER BY atk LIMIT 1
+										)
+									,0)
+								ORDER BY atk_calc(d.pokemon_name,d.rml+10) DESC, d.rml, s.is_primary DESC
+								) list_burst)
+
+					");					
+
+	PREPARE sel FROM @s;
+	EXECUTE sel;
+	DEALLOCATE PREPARE sel;
+	
+	END LOOP;
+
+	CLOSE cur_type;
+END //
+DELIMITER ;
+
+CALL get_best();
+SELECT * FROM (
+	SELECT 'Type', 'Raw Atk', 'Barrier Shot', 'Block Shot', 'Rock Shot', 'Shot Out', 'Typeless Combo', 'Monotype Combo', 'Finisher', 'Unconditional', 'Status'
+	UNION ALL (
+		SELECT * FROM best
+		)
+	) temp
+INTO OUTFILE "bestpkmn.txt" LINES TERMINATED BY '\r\n';
+

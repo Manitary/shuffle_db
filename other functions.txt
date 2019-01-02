@@ -1,0 +1,55 @@
+# get atk of a pokemon
+drop function if exists atk_calc;
+delimiter //
+create function atk_calc(poke varchar(30), lvl tinyint unsigned)
+	returns tinyint(3) unsigned
+	begin
+		declare final_atk tinyint(3) unsigned;
+		declare maxlvl tinyint(3) unsigned;
+		declare baseatk tinyint(3) unsigned;
+		select 10+rml into maxlvl from dex where pokemon_name = poke;
+		if lvl < 1 or lvl > maxlvl then
+			return 0;
+		end if;
+		select bp into baseatk from dex where pokemon_name = poke;
+		case baseatk
+			when 30 then select bp30 into final_atk from atk where level = lvl;
+			when 40 then select bp40 into final_atk from atk where level = lvl;
+			when 50 then select bp50 into final_atk from atk where level = lvl;
+			when 60 then select bp60 into final_atk from atk where level = lvl;
+			when 70 then select bp70 into final_atk from atk where level = lvl;
+			when 80 then select bp80 into final_atk from atk where level = lvl;
+			when 90 then select bp90 into final_atk from atk where level = lvl;
+		end case;
+		return final_atk;
+	end //
+delimiter ;
+
+# get exp of a pokemon
+drop function if exists exp_calc;
+delimiter //
+create function exp_calc(poke varchar(30), lvl1 tinyint unsigned, lvl2 tinyint unsigned)
+	returns int unsigned
+	begin
+		declare exp_tot int unsigned;
+		declare maxlvl tinyint unsigned;
+		declare baseatk tinyint unsigned;
+		select 10+rml into maxlvl from dex where pokemon_name = poke;
+		if lvl1 < 1 or lvl2 > maxlvl or lvl1>=lvl2 then
+			return 0;
+		end if;
+		select bp into baseatk from dex where pokemon_name = poke;
+		case baseatk
+			when 30 then select sum(case when level > lvl1 then case when level <= lvl2 then bp30 else 0 end else 0 end) into exp_tot from exp;
+			when 40 then select sum(case when level > lvl1 then case when level <= lvl2 then bp40 else 0 end else 0 end) into exp_tot from exp;
+			when 50 then select sum(case when level > lvl1 then case when level <= lvl2 then bp50 else 0 end else 0 end) into exp_tot from exp;
+			when 60 then select sum(case when level > lvl1 then case when level <= lvl2 then bp60 else 0 end else 0 end) into exp_tot from exp;
+			when 70 then select sum(case when level > lvl1 then case when level <= lvl2 then bp70 else 0 end else 0 end) into exp_tot from exp;
+			when 80 then select sum(case when level > lvl1 then case when level <= lvl2 then bp80 else 0 end else 0 end) into exp_tot from exp;
+			when 90 then select sum(case when level > lvl1 then case when level <= lvl2 then bp90 else 0 end else 0 end) into exp_tot from exp;
+		end case;
+		return exp_tot;
+	end //
+delimiter ;
+
+
