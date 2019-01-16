@@ -1,0 +1,33 @@
+DROP PROCEDURE IF EXISTS best_partners;
+SET SESSION group_concat_max_len = 1000000;
+DELIMITER //
+
+CREATE PROCEDURE best_partners()
+BEGIN
+	DECLARE done BOOL DEFAULT FALSE;
+	DECLARE temp_pkmn VARCHAR(255);
+	DECLARE cur_pkmn CURSOR FOR SELECT DISTINCT pokemon_name FROM ux_team WHERE stage_id >= "UX300";
+	DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+	OPEN cur_pkmn;
+	
+	read_loop: LOOP
+		FETCH cur_pkmn INTO temp_pkmn;
+		IF done THEN
+			LEAVE read_loop;
+		END IF;
+		
+		SET @p = temp_pkmn;
+		
+		SET @s = CONCAT("SELECT * FROM (SELECT '{| border=\"1\"',1000,'!style=\"background-color: \#ffffcc;\" colspan=\"2\" |{{Thumbicon|pokemon=",@p,"}}','",@p,"' UNION ALL (SELECT CONCAT('|{{Thumbicon|pokemon=',u2.pokemon_name,'}}'),COUNT(*),'|',u2.pokemon_name FROM ux_team u1 JOIN ux_team u2 USING (stage_id) WHERE stage_id >= 'UX300' AND u1.pokemon_name = \"",@p,"\" AND u2.pokemon_name <> u1.pokemon_name GROUP BY u2.pokemon_name ORDER BY COUNT(*) DESC) UNION ALL SELECT '|}',0,'end2','end3') newtable ORDER BY 2 DESC INTO OUTFILE \"",@p,".txt\" LINES TERMINATED BY '\r\n|-\r\n';");
+		
+		PREPARE sel FROM @s;
+		EXECUTE sel;
+		DEALLOCATE PREPARE sel;
+		
+	END LOOP;	
+	CLOSE cur_pkmn;
+END//
+DELIMITER ;
+
+CALL best_partners();
